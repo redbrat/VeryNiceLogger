@@ -8,6 +8,10 @@ public class ConfigView : ViewBase<Config>
 
     public override void Render(Config config)
     {
+        var serializedConfig = new SerializedObject(config);
+        EditorGUILayout.PropertyField(serializedConfig.FindProperty("LinesLogging"), new GUIContent("Log Lines:"));
+        EditorGUILayout.PropertyField(serializedConfig.FindProperty("ParametersLogging"), new GUIContent("Log Function Params:"));
+
         EditorGUILayout.LabelField("Ignored Special Folders:");
         var newSpecialFolders = (SpecialFolderType)EditorGUILayout.EnumFlagsField(config.SpecialFolders);
         if (newSpecialFolders != config.SpecialFolders)
@@ -17,7 +21,6 @@ public class ConfigView : ViewBase<Config>
         }
 
         EditorGUILayout.LabelField("Ignored Custom Folders:");
-        var serializedConfig = new SerializedObject(config);
         if (_reorderableList == default)
         {
             _reorderableList = new ReorderableList(serializedConfig, serializedConfig.FindProperty("NotVerySpecialFolders"), true, false, true, true);
