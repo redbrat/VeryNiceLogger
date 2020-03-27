@@ -15,35 +15,39 @@ static class CSharpRegex
     public const string Override = @"(?<Override>\boverride\b)";
     public const string New = @"(?<New>\bnew\b)";
 
-    public static readonly Func<string, string> CommaSeparatedOneOrMore = expression => $@"{expression}(?:{IgnoredStuff}*,{IgnoredStuff}*{expression})*";
-    public static readonly Func<string, string> BreadcrumbsOneOrMore = expression => $@"{expression}(?:{IgnoredStuff}*\.{IgnoredStuff}*{expression})*";
+    public static readonly Func<string, string> SeparatedOneOrMore = expression => $@"(?:{expression}(?:{IgnoredStuff}*{expression})*)";
+    public static readonly Func<string, string> CommaSeparatedOneOrMore = expression => $@"(?:{expression}(?:{IgnoredStuff}*,{IgnoredStuff}*{expression})*)";
+    public static readonly Func<string, string> DotSeparatedOneOrMore = expression => $@"(?:{expression}(?:{IgnoredStuff}*\.{IgnoredStuff}*{expression})*)";
     public static readonly Func<string, string> NotIgnored = expression => $@"(?:(?<!//.*)(?<!/\*{AnythingIncludingNewLine}*?){expression})";
     public static readonly Func<char, char, string, string, string> NestedCharsGroup = (openChar, closeChar, openName, closeName) => $"^[^{openChar}{closeChar}]*?(((?<{openName}>{openChar})[^{openChar}{closeChar}]*?)+?((?<{closeName}-{openName}>{closeChar})[^{openChar}{closeChar}]*?)+?)*(?({openName})(?!))$";
     public static readonly Func<string, string, string, string, string> NestedStringGroup = (openString, closeString, openName, closeName) => $@"^{AnythingIncludingNewLine}*?(((?<{openName}>{openString}){AnythingIncludingNewLine}*?)+?((?<{closeName}-{openName}>{closeString}){AnythingIncludingNewLine}*?)+?)*(?({openName})(?!))$";
 
-    public static string GetNestedCharsGroup(char openChar, char closeChar, string openGroupName, string closeGroupName, string leftGap, string rightGap, string expressionBetween)
-    {
-        return $@"{leftGap}*?(?:(?:(?<{openGroupName}>{openChar}){expressionBetween})+?(?:(?<{closeGroupName}-{openGroupName}>{closeChar}){rightGap}*?)+?)*(?({openGroupName})(?!))";
-    }
+    //public static string GetNestedCharsGroup(char openChar, char closeChar, string openGroupName, string closeGroupName, string leftGap, string rightGap, string expressionBetween) => $@"{leftGap}*?(?:(?:(?<{openGroupName}>{openChar}){expressionBetween})(?:(?<{closeGroupName}-{openGroupName}>{closeChar}){rightGap}*?)+?)*(?({openGroupName})(?!))";
+    public static string GetNestedCharsGroup(char openChar, char closeChar, string openGroupName, string closeGroupName, string leftGap, string rightGap, string expressionBetween) => $@"(?:{leftGap}*?(?:(?:(?<{openGroupName}>{openChar}){expressionBetween})+?(?:(?<{closeGroupName}-{openGroupName}>{closeChar}){rightGap}*?)+?)*(?(?:{openGroupName})(?!)))";
+    public static string GetNestedStringsGroup(string openString, string closeString, string openGroupName, string closeGroupName, string leftGap, string rightGap, string expressionBetween) => $@"(?:{leftGap}*?(?:(?:(?<{openGroupName}>{openString}){expressionBetween})+?(?:(?<{closeGroupName}-{openGroupName}>{closeString}){rightGap}*?)+?)*(?(?:{openGroupName})(?!)))";
 
     public static readonly string TypeParameter = $@"(?<TypeParameter>\b{WordNotPrecedingByNumber}\b)";
     public static readonly string MultilineComment = $@"(?:/\*{AnythingIncludingNewLine}*?\*/)";
     public static readonly string IgnoredStuff = $@"(?:\s|{SingleLineComment}|{MultilineComment})";
     //public static readonly string Generics = $@"(?<Generics>\<{IgnoredStuff}*{CommaSeparatedOneOrMore(TypeParameter)}{IgnoredStuff}*\>)";
-    public static readonly string Type = $@"(?<Type>\b{BreadcrumbsOneOrMore(WordNotPrecedingByNumber)}\b)";
-    public static readonly string Generics = $@"(?<Generics>{GetNestedCharsGroup('<', '>', "GenericsOpen", "GenericsClose", IgnoredStuff, IgnoredStuff, $"{IgnoredStuff}*{CommaSeparatedOneOrMore(Type)}{IgnoredStuff}*")})";
+    public static readonly string Type = $@"(?<Type>\b{DotSeparatedOneOrMore(WordNotPrecedingByNumber)}\b)";
+    public static readonly string Generics = $@"(?<Generics>{GetNestedCharsGroup('<', '>', "GenericsOpen", "GenericsClose", AnythingIncludingNewLine, AnythingIncludingNewLine, $"{IgnoredStuff}*{CommaSeparatedOneOrMore(Type)}?{IgnoredStuff}*")})";
+    //public static readonly string Generics = $@"(?<Generics>{GetNestedStringsGroup('<'.ToString(), '>'.ToString(), "GenericsOpen", "GenericsClose", IgnoredStuff, IgnoredStuff, $"{IgnoredStuff}*{CommaSeparatedOneOrMore(Type)}?{IgnoredStuff}*")})";
     public static readonly string GenericType = $@"(?<GenericType>{Type}(?:{IgnoredStuff}*{Generics})?)";
     public static readonly string AccessModifier = $@"(?<AccessModifier>\b(?:public|private(?:{IgnoredStuff}+protected)?|protected(?:{IgnoredStuff}+internal)?|internal)\b)";
     public static readonly string GenericConstrains = $@"(?<GenericConstrains>\bwhere{IgnoredStuff}+{TypeParameter}{IgnoredStuff}*:{IgnoredStuff}*{CommaSeparatedOneOrMore(GenericType)})";
-    public static readonly string GenericsConstrains = $@"(?<GenericsConstrains>(?:{GenericConstrains}{IgnoredStuff}*)+)";
+    public static readonly string GenericsConstrains = $@"(?<GenericsConstrains>{SeparatedOneOrMore(GenericConstrains)})";
     public static readonly string Parameters = $@"";
-    public static readonly string NamespaceDeclaration = $@"(?:\bnamespace{IgnoredStuff}+(?<Namespace>{WordNotPrecedingByNumber}))";
-    public static readonly string ClassDeclaration = $@"(?:{AccessModifier}{IgnoredStuff}+)?(?:(?:{Static}|{Abstract}|{Sealed}){IgnoredStuff}+)?\bclass{IgnoredStuff}+(?<ClassName>{GenericType})(?<Extending>{IgnoredStuff}*:{IgnoredStuff}*{CommaSeparatedOneOrMore(GenericType)})?{IgnoredStuff}*{GenericsConstrains}?";
+    public static readonly string NamespaceDeclaration = $@"(?<NamespaceDeclaration>\bnamespace{IgnoredStuff}+(?<Namespace>{WordNotPrecedingByNumber}))";
+    public static readonly string ClassDeclaration = $@"(?<ClassDeclaration>{AccessModifier}{IgnoredStuff}+)?(?:(?:{Static}|{Abstract}|{Sealed}){IgnoredStuff}+)?\bclass{IgnoredStuff}+(?<ClassName>{GenericType})(?<Extending>{IgnoredStuff}*:{IgnoredStuff}*{CommaSeparatedOneOrMore(GenericType)})?{IgnoredStuff}*{GenericsConstrains}?";
     public static readonly string FunctionDeclaration = $@"(?:(?:{AccessModifier}{IgnoredStuff}+)?{New}?(?:{Static}|{Abstract}|{Virtual}{Override})?{Sealed}?(?<ReturnType>{GenericType}){IgnoredStuff}(?<FunctionName>{WordNotPrecedingByNumber}){IgnoredStuff}+{Parameters})";
 
 
 
-    public static readonly string RecursiveClasses = $@"{NestedStringGroup($"{ClassDeclaration}{IgnoredStuff}*{{", $"}}", "Open", "Close")}";
+    //public static readonly string RecursiveClasses = $@"^{GetNestedStringsGroup($"{{", $"}}", "ClassOpen", "ClassClose", AnythingIncludingNewLine, AnythingIncludingNewLine, $"(?:{AnythingIncludingNewLine})*")}$";
+    public static readonly string RecursiveClasses = $@"^{GetNestedStringsGroup($"(?:{ClassDeclaration}{{)", $"}}", "ClassOpen", "ClassClose", AnythingIncludingNewLine, AnythingIncludingNewLine, $"(?:{AnythingIncludingNewLine})*")}$";
+    //public static readonly string RecursiveClasses = $@"{NestedStringGroup($"{ClassDeclaration}{{", $"}}", "ClassOpen", "ClassClose")}";
+    //public static readonly string RecursiveClasses = $@"{GetNestedStringsGroup($"{ClassDeclaration}{{", $"}}", "ClassOpen", "ClassClose", IgnoredStuff, IgnoredStuff, AnythingIncludingNewLine)}";
 }
 
 namespace as2k
