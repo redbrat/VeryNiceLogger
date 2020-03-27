@@ -5,6 +5,7 @@ using UnityEngine;
 
 static class CSharpRegex
 {
+    public const string Value = $@"(?<Value>\b\w*\b)";
     public const string AnythingIncludingNewLine = @"(?:[\s\S])";
     public const string SingleLineComment = @"(?://.*\n)";
     public const string WordNotPrecedingByNumber = @"(?:[a-zA-Z_]{1}\w*)";
@@ -15,8 +16,10 @@ static class CSharpRegex
     public const string Override = @"(?<Override>\boverride\b)";
     public const string New = @"(?<New>\bnew\b)";
 
+    public static string GetCommaSeparatedOneOrMore(string expression, bool greedy = true) => $@"(?:{expression}(?:{IgnoredStuff}*,{IgnoredStuff}*{expression})*{(greedy ? string.Empty : "?")})";
+
     public static readonly Func<string, string> SeparatedOneOrMore = expression => $@"(?:{expression}(?:{IgnoredStuff}*{expression})*)";
-    public static readonly Func<string, string> CommaSeparatedOneOrMore = expression => $@"(?:{expression}(?:{IgnoredStuff}*,{IgnoredStuff}*{expression})*)";
+    //public static readonly Func<string, string> CommaSeparatedOneOrMore = expression => $@"(?:{expression}(?:{IgnoredStuff}*,{IgnoredStuff}*{expression})*)";
     public static readonly Func<string, string> DotSeparatedOneOrMore = expression => $@"(?:{expression}(?:{IgnoredStuff}*\.{IgnoredStuff}*{expression})*)";
     public static readonly Func<string, string> NotIgnored = expression => $@"(?:(?<!//.*)(?<!/\*{AnythingIncludingNewLine}*?){expression})";
     public static readonly Func<char, char, string, string, string> NestedCharsGroup = (openChar, closeChar, openName, closeName) => $"^[^{openChar}{closeChar}]*?(((?<{openName}>{openChar})[^{openChar}{closeChar}]*?)+?((?<{closeName}-{openName}>{closeChar})[^{openChar}{closeChar}]*?)+?)*(?({openName})(?!))$";
@@ -31,17 +34,19 @@ static class CSharpRegex
     public static readonly string IgnoredStuff = $@"(?:\s|{SingleLineComment}|{MultilineComment})";
     //public static readonly string Generics = $@"(?<Generics>\<{IgnoredStuff}*{CommaSeparatedOneOrMore(TypeParameter)}{IgnoredStuff}*\>)";
     public static readonly string Type = $@"(?<Type>\b{DotSeparatedOneOrMore(WordNotPrecedingByNumber)}\b)";
-    public static readonly string Generics = $@"(?<Generics>{GetNestedCharsGroup('<', '>', "GenericsOpen", "GenericsClose", AnythingIncludingNewLine, AnythingIncludingNewLine, $"{IgnoredStuff}*{CommaSeparatedOneOrMore(Type)}?{IgnoredStuff}*")})";
+    public static readonly string Generics = $@"(?<Generics>{GetNestedCharsGroup('<', '>', "GenericsOpen", "GenericsClose", "[^<>()]", "[^<>()]", $"{IgnoredStuff}*{GetCommaSeparatedOneOrMore(Type)}?{IgnoredStuff}*")})";
     //public static readonly string Generics = $@"(?<Generics>{GetNestedStringsGroup('<'.ToString(), '>'.ToString(), "GenericsOpen", "GenericsClose", IgnoredStuff, IgnoredStuff, $"{IgnoredStuff}*{CommaSeparatedOneOrMore(Type)}?{IgnoredStuff}*")})";
     public static readonly string GenericType = $@"(?<GenericType>{Type}(?:{IgnoredStuff}*{Generics})?)";
     public static readonly string AccessModifier = $@"(?<AccessModifier>\b(?:public|private(?:{IgnoredStuff}+protected)?|protected(?:{IgnoredStuff}+internal)?|internal)\b)";
-    public static readonly string GenericConstrains = $@"(?<GenericConstrains>\bwhere{IgnoredStuff}+{TypeParameter}{IgnoredStuff}*:{IgnoredStuff}*{CommaSeparatedOneOrMore(GenericType)})";
+    public static readonly string GenericConstrains = $@"(?<GenericConstrains>\bwhere{IgnoredStuff}+{TypeParameter}{IgnoredStuff}*:{IgnoredStuff}*{GetCommaSeparatedOneOrMore(GenericType)})";
     public static readonly string GenericsConstrains = $@"(?<GenericsConstrains>{SeparatedOneOrMore(GenericConstrains)})";
-    public static readonly string Parameters = $@"";
     public static readonly string NamespaceDeclaration = $@"(?<NamespaceDeclaration>\bnamespace{IgnoredStuff}+(?<Namespace>{WordNotPrecedingByNumber}))";
-    public static readonly string ClassDeclaration = $@"(?<ClassDeclaration>{AccessModifier}{IgnoredStuff}+)?(?:(?:{Static}|{Abstract}|{Sealed}){IgnoredStuff}+)?\bclass{IgnoredStuff}+(?<ClassName>{GenericType})(?<Extending>{IgnoredStuff}*:{IgnoredStuff}*{CommaSeparatedOneOrMore(GenericType)})?{IgnoredStuff}*{GenericsConstrains}?";
-    public static readonly string FunctionDeclaration = $@"(?:(?:{AccessModifier}{IgnoredStuff}+)?{New}?(?:{Static}|{Abstract}|{Virtual}{Override})?{Sealed}?(?<ReturnType>{GenericType}){IgnoredStuff}(?<FunctionName>{WordNotPrecedingByNumber}){IgnoredStuff}+{Parameters})";
+    public static readonly string ClassDeclaration = $@"(?<ClassDeclaration>{AccessModifier}{IgnoredStuff}+)?(?:(?:{Static}|{Abstract}|{Sealed}){IgnoredStuff}+)?\bclass{IgnoredStuff}+(?<ClassName>{GenericType})(?<Extending>{IgnoredStuff}*:{IgnoredStuff}*{GetCommaSeparatedOneOrMore(GenericType)})?{IgnoredStuff}*{GenericsConstrains}?";
+    public static readonly string FunctionDeclaration = $@"(?:(?:{AccessModifier}{IgnoredStuff}+)?{New}?(?:{Static}|{Abstract}|{Virtual}{Override})?{Sealed}?(?<ReturnType>{GenericType}){IgnoredStuff}(?<FunctionName>{WordNotPrecedingByNumber}){IgnoredStuff}*{Parameters})";
 
+    public static readonly string Variable = $@"(?<Variable>\b{WordNotPrecedingByNumber}\b)";
+    public static readonly string GenericTypedVariable = $@"(?<GenericTypedVariable>{GenericType}{IgnoredStuff}*{Variable}(?<GenericTypedVariableDefaultValue>{IgnoredStuff}*={IgnoredStuff}*{Value})?)";
+    public static readonly string Parameters = $@"(?<Parameters>\({GetCommaSeparatedOneOrMore(GenericTypedVariable, false)}??\))";
 
 
     //public static readonly string RecursiveClasses = $@"^{GetNestedStringsGroup($"{{", $"}}", "ClassOpen", "ClassClose", AnythingIncludingNewLine, AnythingIncludingNewLine, $"(?:{AnythingIncludingNewLine})*")}$";
@@ -111,6 +116,11 @@ namespace as2k
         }
 
         public void HailThe(Captain currentCaptain) { }
+
+        public void HailThe(Captain currentCaptain, int tiMes = 13) { }
+
+        public void HailThe(Captain currentCaptain, int[] newYourTimes) { }
+        public void HailThe(Captain currentCaptain, Dictionary<int, IEnumerable<Captain>> newYourTimes = null) { }
 
         public object Clone()
         {
