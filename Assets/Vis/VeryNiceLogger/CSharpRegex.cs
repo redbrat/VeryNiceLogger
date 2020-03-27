@@ -5,7 +5,7 @@ using UnityEngine;
 
 static class CSharpRegex
 {
-    public const string Value = $@"(?<Value>\b\w*\b)";
+    public const string Value = @"(?<Value>\b\w*\b)";
     public const string AnythingIncludingNewLine = @"(?:[\s\S])";
     public const string SingleLineComment = @"(?://.*\n)";
     public const string WordNotPrecedingByNumber = @"(?:[a-zA-Z_]{1}\w*)";
