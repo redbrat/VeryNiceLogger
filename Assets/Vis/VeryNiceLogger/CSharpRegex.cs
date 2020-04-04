@@ -34,7 +34,7 @@ static class CSharpRegex
     public static readonly string IgnoredStuff = $@"(?:\s|{SingleLineComment}|{MultilineComment})";
     //public static readonly string Generics = $@"(?<Generics>\<{IgnoredStuff}*{CommaSeparatedOneOrMore(TypeParameter)}{IgnoredStuff}*\>)";
     public static readonly string Type = $@"(?<Type>\b{DotSeparatedOneOrMore(WordNotPrecedingByNumber)}\b)";
-    public static readonly string Generics = $@"(?<Generics>{GetNestedCharsGroup('<', '>', "GenericsOpen", "GenericsClose", "[^<>(){}]", "[^<>(){}]", $"{IgnoredStuff}*{GetCommaSeparatedOneOrMore(Type)}?{IgnoredStuff}*")})";
+    public static readonly string Generics = $@"(?<Generics>{GetNestedCharsGroup('<', '>', "GenericsOpen", "GenericsClose", "[^<>(){};]", "[^<>(){};]", $"{IgnoredStuff}*{GetCommaSeparatedOneOrMore(Type)}?{IgnoredStuff}*")})";
     //public static readonly string Generics = $@"(?<Generics>{GetNestedStringsGroup('<'.ToString(), '>'.ToString(), "GenericsOpen", "GenericsClose", IgnoredStuff, IgnoredStuff, $"{IgnoredStuff}*{CommaSeparatedOneOrMore(Type)}?{IgnoredStuff}*")})";
     public static readonly string GenericType = $@"(?<GenericType>{Type}(?:{IgnoredStuff}*{Generics})?)";
     public static readonly string AccessModifier = $@"(?<AccessModifier>\b(?:public|private(?:{IgnoredStuff}+protected)?|protected(?:{IgnoredStuff}+internal)?|internal)\b)";
@@ -46,8 +46,14 @@ static class CSharpRegex
     public static readonly string Variable = $@"(?<Variable>\b{WordNotPrecedingByNumber}\b)";
     public static readonly string GenericTypedVariable = $@"(?<GenericTypedVariable>{GenericType}{IgnoredStuff}*{Variable}(?<GenericTypedVariableDefaultValue>{IgnoredStuff}*={IgnoredStuff}*{Value})?)";
     public static readonly string Parameters = $@"(?<Parameters>\({GetCommaSeparatedOneOrMore(GenericTypedVariable, false)}??\))";
-    public static readonly string FunctionDeclaration = $@"(?<FunctionDeclaration>(?:{AccessModifier}{IgnoredStuff}+?)??{New}??(?:{Static}|{Abstract}|{Virtual}{Override})??{Sealed}??(?<ReturnType>{GenericType}){IgnoredStuff}*?(?<FunctionName>\b{WordNotPrecedingByNumber}\b)(?:{IgnoredStuff}*?{Generics})??{IgnoredStuff}*?{Parameters}{IgnoredStuff}*?{GenericsConstrains}??{IgnoredStuff}*?(?={{))";
+    public static readonly string FunctionDeclaration = $@"(?<FunctionDeclaration>(?:{AccessModifier}{IgnoredStuff}+?)??{New}??(?:{Static}|{Abstract}|{Virtual}|{Override})??{Sealed}??(?<ReturnType>{GenericType}){IgnoredStuff}*?(?<FunctionName>\b{WordNotPrecedingByNumber}\b)(?:{IgnoredStuff}*?{Generics})??{IgnoredStuff}*?{Parameters}{IgnoredStuff}*?{GenericsConstrains}??{IgnoredStuff}*?(?={{))";
 
+
+    public static readonly string GetProperty = $@"(?<GetProperty>(?:{AccessModifier}{IgnoredStuff}+?)??\bget\b{IgnoredStuff}*(?<Body>(?<ExpressionBody>(?:=>{IgnoredStuff}*)[^;]*;)|(?<FullBody>{GetNestedCharsGroup('{', '}', "OpenCurlyBracket", "CloseCurlyBracket", "[^{}]", "[^{}]", $"{AnythingIncludingNewLine}*?")})))";
+    public static readonly string SetProperty = $@"(?<SetProperty>(?:{AccessModifier}{IgnoredStuff}+?)??\bset\b{IgnoredStuff}*(?<Body>(?<ExpressionBody>(?:=>{IgnoredStuff}*)[^;]*;)|(?<FullBody>{GetNestedCharsGroup('{', '}', "OpenCurlyBracket", "CloseCurlyBracket", "[^{}]", "[^{}]", $"{AnythingIncludingNewLine}*?")})))";
+    public static readonly string GetOrSetProperty = $@"(?:{GetProperty}|{SetProperty})";
+    //public static readonly string PropertyDeclaration = $@"(?<PropertyDeclaration>(?:{AccessModifier}{IgnoredStuff}*?)??(?:{New}{IgnoredStuff}*?)??(?:(?:{Static}|{Abstract}|{Virtual}|{Override}){IgnoredStuff}*?)??(?:{Sealed}{IgnoredStuff}*?)??(?<TypeOfProperty>{GenericType}){IgnoredStuff}*?{{(?:{IgnoredStuff}*?{GetOrSetProperty}{IgnoredStuff}*?)*?}})";
+    public static readonly string PropertyDeclaration = $@"(?<PropertyDeclaration>(?:{AccessModifier}{IgnoredStuff}*?)?(?:{New}{IgnoredStuff}*?)?(?:(?:{Static}|{Abstract}|{Virtual}|{Override}){IgnoredStuff}*?)?(?:{Sealed}{IgnoredStuff}*?)?)";
 
     //public static readonly string RecursiveClasses = $@"^{GetNestedStringsGroup($"{{", $"}}", "ClassOpen", "ClassClose", AnythingIncludingNewLine, AnythingIncludingNewLine, $"(?:{AnythingIncludingNewLine})*")}$";
     public static readonly string RecursiveClasses = $@"^{GetNestedStringsGroup($"(?:{ClassDeclaration}{{)", $"}}", "ClassOpen", "ClassClose", AnythingIncludingNewLine, AnythingIncludingNewLine, $"(?:{AnythingIncludingNewLine})*")}$";
@@ -59,6 +65,7 @@ namespace as2k
 {
     public abstract class q923ue9
     {
+        public abstract object AbstractProp { get; set; }
         public class MeaUapsdo1 { }
         public class MeaUapsdo2: ICloneable
         {
@@ -73,6 +80,41 @@ namespace as2k
     }
     public class ASKDO:q923ue9 , IEnumerable<System.Collections.Generic.Dictionary<string, int>>
     {
+        public string MyComplexString
+        {
+            get => $"ajsidj:{_myComplexString}!";
+            set => _myComplexString = $"asdopk!{value}:";
+        }
+        private string _myComplexString;
+
+        public virtual float InterestingProp
+        {
+            internal set
+            {
+                _interestingProp = value;
+            }
+            get => _interestingProp;
+        }
+        public virtual float InterestingProp2
+        {
+            private set
+            {
+                _interestingProp = value;
+            }
+            get => _interestingProp;
+        }
+        protected float _interestingProp;
+        public override object AbstractProp { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public virtual object VirtualProp { get; set; }
+        public object Prop1 { get; }
+        public Dictionary<List<string>, float> Prop2 { get; private set; }
+        public List<int> Prop3 { get; internal set; }
+        public object Prop4 { get; protected set; }
+        public static int asdjkkoasdj
+        {
+            get => 1;
+            set { }
+        }
         public int MyPropertyMYYY1
         {
             get => _myProperty;
@@ -169,6 +211,7 @@ namespace as2k
                 _myProperty = value;
             }
         }
+
         private int _myProperty;
 
         public string getMyGoodString<T, MeaUapsdo1> /*32323*/ () where T : Type where MeaUapsdo1 : System. Collections .Generic . IEnumerable<T> 
@@ -204,6 +247,9 @@ namespace as2k
 
     internal sealed class sssss<Captain> :ASKDO ,ICloneable where Captain : ScriptableObject
     {
+        public override float InterestingProp { get => base.InterestingProp; internal set => base.InterestingProp = value; }
+        public override float InterestingProp2 => base.InterestingProp2;
+
         public new string getMyBeautifulString()
         {
             return "Bla-bla-bla";
