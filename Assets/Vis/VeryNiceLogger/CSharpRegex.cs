@@ -6,6 +6,12 @@ using UnityEngine;
 
 static class CSharpRegex
 {
+    /*
+     * Мда, не вижу как регексы могут обрабатывает в разумное время сложные рекурсивные структуры. По крайней мере с балансирующими группами не вижу как. 
+     * Я уж не говорю о полноценном распознавании рекурсии и то, что внутри нее. Об этом речи нет. Даже тупо чтобы правильно ограничить рекурсию по краям
+     * требуется продумать кучу разных возможных сценариев типа, а что если встретится строка? А что если строка будет интерполированная а внутри - лямбда?
+     * Короче это очень похоже на затыкание круглой пробкой квадратного отверстия. Бросаю это дело. Было интересно.
+     */
     public const string Value = @"(?<Value>\b\w*\b)";
     public const string AnythingIncludingNewLine = @"(?:[\s\S])";
     public const string SingleLineComment = @"(?://.*\n)";
@@ -23,11 +29,9 @@ static class CSharpRegex
     //public static readonly Func<string, string> CommaSeparatedOneOrMore = expression => $@"(?:{expression}(?:{IgnoredStuff}*,{IgnoredStuff}*{expression})*)";
     public static readonly Func<string, string> DotSeparatedOneOrMore = expression => $@"(?:{expression}(?:{IgnoredStuff}*\.{IgnoredStuff}*{expression})*)";
     public static readonly Func<string, string> NotIgnored = expression => $@"(?:(?<!//.*)(?<!/\*{AnythingIncludingNewLine}*?){expression})";
-    public static readonly Func<char, char, string, string, string> NestedCharsGroup = (openChar, closeChar, openName, closeName) => $"^[^{openChar}{closeChar}]*?(((?<{openName}>{openChar})[^{openChar}{closeChar}]*?)+?((?<{closeName}-{openName}>{closeChar})[^{openChar}{closeChar}]*?)+?)*(?({openName})(?!))$";
-    public static readonly Func<string, string, string, string, string> NestedStringGroup = (openString, closeString, openName, closeName) => $@"^{AnythingIncludingNewLine}*?(((?<{openName}>{openString}){AnythingIncludingNewLine}*?)+?((?<{closeName}-{openName}>{closeString}){AnythingIncludingNewLine}*?)+?)*(?({openName})(?!))$";
 
     //public static string GetNestedCharsGroup(char openChar, char closeChar, string openGroupName, string closeGroupName, string leftGap, string rightGap, string expressionBetween) => $@"(?:{leftGap}*?(?:(?:(?<{openGroupName}>{openChar}){expressionBetween})+?(?:(?<{closeGroupName}-{openGroupName}>{closeChar}){rightGap}*?)+?)+(?(?:{openGroupName})(?!)))";
-    public static string GetNestedCharsGroup(char openChar, char closeChar, string openGroupName, string closeGroupName, string leftGap, string rightGap, string expressionBetween) => $@"(?:{leftGap}*?(?:(?<{openGroupName}>{openChar})+?(?:{expressionBetween})(?<{closeGroupName}-{openGroupName}>{closeChar})+?(?:{rightGap}*?))*(?(?:{openGroupName})(?!)))";
+    public static string GetNestedCharsGroup(char openChar, char closeChar, string openGroupName, string closeGroupName) => $@"\{openChar}(?>\{openChar}(?<{openGroupName}>)|[^{openChar}{closeChar}]+|\{closeChar}(?<{closeGroupName}-{openGroupName}>))*(?({openGroupName})(?!))\{closeChar}";
     public static string GetNestedStringsGroup(string openString, string closeString, string openGroupName, string closeGroupName, string leftGap, string rightGap, string expressionBetween) => $@"(?:{leftGap}*?(?:(?:(?<{openGroupName}>{openString}){expressionBetween})+?(?:(?<{closeGroupName}-{openGroupName}>{closeString}){rightGap}*?)+?)*(?(?:{openGroupName})(?!)))";
 
     public static readonly string TypeParameter = $@"(?<TypeParameter>\b{WordNotPrecedingByNumber}\b)";
@@ -35,7 +39,7 @@ static class CSharpRegex
     public static readonly string IgnoredStuff = $@"(?:\s|{SingleLineComment}|{MultilineComment})";
     //public static readonly string Generics = $@"(?<Generics>\<{IgnoredStuff}*{CommaSeparatedOneOrMore(TypeParameter)}{IgnoredStuff}*\>)";
     public static readonly string Type = $@"(?<Type>\b{DotSeparatedOneOrMore(WordNotPrecedingByNumber)}\b)";
-    public static readonly string Generics = $@"(?<Generics>{GetNestedCharsGroup('<', '>', "GenericsOpen", "GenericsClose", "[^<>(){};]", "[^<>(){};]", $"{IgnoredStuff}*{GetCommaSeparatedOneOrMore(Type)}?{IgnoredStuff}*")})";
+    public static readonly string Generics = $@"(?<Generics>{GetNestedCharsGroup('<', '>', "GenericsOpen", "GenericsClose")})";
     //public static readonly string Generics = $@"(?<Generics>{GetNestedStringsGroup('<'.ToString(), '>'.ToString(), "GenericsOpen", "GenericsClose", IgnoredStuff, IgnoredStuff, $"{IgnoredStuff}*{CommaSeparatedOneOrMore(Type)}?{IgnoredStuff}*")})";
     public static readonly string GenericType = $@"(?<GenericType>{Type}(?:{IgnoredStuff}*{Generics})?)";
     public static readonly string ArrayGenericType = $@"(?<ArrayGenericType>{GenericType}(?<IsArray>{IgnoredStuff}*?\[{IgnoredStuff}*?\])?)";
@@ -51,7 +55,7 @@ static class CSharpRegex
     public static readonly string FunctionDeclaration = $@"(?<FunctionDeclaration>(?:{AccessModifier}{IgnoredStuff}+?)??{New}??(?:(?:{Static}|{Abstract}|{Virtual}|{Override}){IgnoredStuff}*?)??(?:{Sealed}{IgnoredStuff}*?)??(?<ReturnType>{ArrayGenericType}){IgnoredStuff}*?(?<FunctionName>\b{WordNotPrecedingByNumber}\b)(?:{IgnoredStuff}*?{Generics})??{IgnoredStuff}*?{Parameters}{IgnoredStuff}*?{GenericsConstrains}??{IgnoredStuff}*?(?={{))";
 
 
-    public static readonly string Body = $@"(?<Body>(?<ExpressionBody>(?:=\>{IgnoredStuff}*)[^;]*;)|(?<FullBody>{GetNestedCharsGroup('{', '}', "OpenCurlyBracket", "CloseCurlyBracket", "[^{}]", "[^{}]", $"{AnythingIncludingNewLine}*?")}))";
+    public static readonly string Body = $@"(?<Body>(?<ExpressionBody>(?:=\>{IgnoredStuff}*)[^;]*;)|(?<FullBody>{GetNestedCharsGroup('{', '}', "OpenCurlyBracket", "CloseCurlyBracket")}))";
     public static readonly string GetProperty = $@"(?<GetProperty>(?:{AccessModifier}{IgnoredStuff}+?)??\bget\b{IgnoredStuff}*{Body})";
     public static readonly string SetProperty = $@"(?<SetProperty>(?:{AccessModifier}{IgnoredStuff}+?)??\bset\b{IgnoredStuff}*{Body})";
     public static readonly string GetOrSetProperty = $@"(?:{GetProperty}|{SetProperty})";
@@ -59,11 +63,11 @@ static class CSharpRegex
 
     //public static readonly string RecursiveClasses = $@"^{GetNestedStringsGroup($"{{", $"}}", "ClassOpen", "ClassClose", AnythingIncludingNewLine, AnythingIncludingNewLine, $"(?:{AnythingIncludingNewLine})*")}$";
     public static readonly string RecursiveClasses = $@"^{GetNestedStringsGroup($"(?:{ClassDeclaration}{{)", $"}}", "ClassOpen", "ClassClose", AnythingIncludingNewLine, AnythingIncludingNewLine, $"(?:{AnythingIncludingNewLine})*")}$";
-    //public static readonly string RecursiveClasses = $@"{NestedStringGroup($"{ClassDeclaration}{{", $"}}", "ClassOpen", "ClassClose")}";
     //public static readonly string RecursiveClasses = $@"{GetNestedStringsGroup($"{ClassDeclaration}{{", $"}}", "ClassOpen", "ClassClose", IgnoredStuff, IgnoredStuff, AnythingIncludingNewLine)}";
 
-    public static readonly string LambdaParameters = $@"(?<LambdaParameters>\((?:(?<TypedLambdaParameters>{GetCommaSeparatedOneOrMore(GenericTypedVariable, false)}??)|(?<NonTypedLambdaParameters>{GetCommaSeparatedOneOrMore(Variable, false)}??))\))";
-    public static readonly string Lambda = $@"(?<Lambda>{LambdaParameters}{IgnoredStuff}*{Body})";
+    public static readonly string LambdaBody = $@"(?<LambdaBody>(?<ExpressionBody>(?:=>{IgnoredStuff}*)[^;{{}}]*;)|(?<FullBody>(?:=>{IgnoredStuff}*){GetNestedCharsGroup('{', '}', "OpenCurlyBracket", "CloseCurlyBracket")}))";
+    public static readonly string LambdaParameters = $@"(?<LambdaParameters>(?<ScopedLambdaParameters>\((?:(?<TypedLambdaParameters>{GetCommaSeparatedOneOrMore(GenericTypedVariable, false)}??)|(?<NonTypedLambdaParameters>{GetCommaSeparatedOneOrMore(Variable, false)}??))\))|(?<UnscopedLambdaParameters>{Variable}))";
+    public static readonly string Lambda = $@"(?<Lambda>{LambdaParameters}{IgnoredStuff}*{LambdaBody})";
 }
 
 namespace as2k
