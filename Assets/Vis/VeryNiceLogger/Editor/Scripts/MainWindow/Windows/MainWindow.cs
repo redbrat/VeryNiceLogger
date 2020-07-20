@@ -1,5 +1,4 @@
 ﻿using UnityEditor;
-using UnityEngine;
 using Vis.Utils;
 
 public class MainWindow : EditorWindow
@@ -24,9 +23,11 @@ public class MainWindow : EditorWindow
     private Config __config;
 
     private ConfigView _configView = new ConfigView();
+    private TestView _testView = new TestView();
 
     private void OnGUI()
     {
         _configView.Render(_config);
+        _testView.Render(_config);
     }
 }

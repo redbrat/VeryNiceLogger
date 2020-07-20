@@ -85,6 +85,8 @@ namespace as2k
 
                 Action<int> b = _ => { };
 
+                Func<int, int, bool> boolFunc = (a123, b123) => a123 < b123;
+
                 Func<int, int> c = ASodjkapoDJSDOPA => ASodjkapoDJSDOPA;
                 Func<int, int> c0 = (ASodjkapoDJSDOPA) => ASodjkapoDJSDOPA;
                 Func<int, int> c00 = (int ASodjkapoDJSDOPA) => ASodjkapoDJSDOPA;
