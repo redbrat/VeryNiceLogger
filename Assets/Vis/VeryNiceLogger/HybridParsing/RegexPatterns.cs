@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -9,4 +10,9 @@ public static class RegexPatterns
 
     public static string MethodRegex() => $"";
 
+    internal static bool IsBlocksContainer(string precedingExpression)
+    {
+
+        throw new NotImplementedException();
+    }
 }

@@ -118,16 +118,26 @@ public static class HybridParser
                     sb.Append(letter);
                     var commandString = sb.ToString();
                     sb.Clear();
-                    parentNode.Accept(new CommandNode() { Command = commandString, EndIndex = i, EndLine = currentLine, EndPosition = i - currentLineStart });
+                    parentNode.Accept(new CommandNode() { ParentNode = parentNode, Command = commandString, EndIndex = i, EndLine = currentLine, EndPosition = i - currentLineStart });
                     break;
+                case ',':
+                    //sb.Append(letter);
+                    var parameterString = sb.ToString();
+                    sb.Clear();
+                    parentNode.Accept(new ParameterNode() { ParentNode = parentNode, Parameter = parameterString, EndIndex = i, EndLine = currentLine, EndPosition = i - currentLineStart });
+                    break;
+
                 case '{':
-                    currentRecursiveNode = new CurlyBracketsNode() { StartLine = currentLine, StartPosition = i - currentLineStart, StartIndex = i };
+                    currentRecursiveNode = new CurlyBracketsNode() { ParentNode = parentNode, PrecedingExpression = sb.ToString(), StartLine = currentLine, StartPosition = i - currentLineStart, StartIndex = i };
+                    sb.Clear();
                     break;
                 case '(':
-                    currentRecursiveNode = new RoundBracketsNode() { StartLine = currentLine, StartPosition = i - currentLineStart, StartIndex = i };
+                    currentRecursiveNode = new RoundBracketsNode() { ParentNode = parentNode, PrecedingExpression = sb.ToString(), StartLine = currentLine, StartPosition = i - currentLineStart, StartIndex = i };
+                    sb.Clear();
                     break;
                 case '[':
-                    currentRecursiveNode = new SquareBracketsNode() { StartLine = currentLine, StartPosition = i - currentLineStart, StartIndex = i };
+                    currentRecursiveNode = new SquareBracketsNode() { ParentNode = parentNode, PrecedingExpression = sb.ToString(), StartLine = currentLine, StartPosition = i - currentLineStart, StartIndex = i };
+                    sb.Clear();
                     break;
                 case '}':
                 case ')':
@@ -135,6 +145,8 @@ public static class HybridParser
                     parentNode.EndIndex = i;
                     parentNode.EndLine = currentLine;
                     parentNode.EndPosition = i - currentLineStart;
+                    parentNode.EndingExpression = sb.ToString();
+                    sb.Clear();
                     addRegexNodes();
                     return (i, currentLineStart, currentLine);
                 default:
@@ -152,8 +164,8 @@ public static class HybridParser
 
         void addRegexNodes()
         {
-            var plainText = sb.ToString();
-            sb.Clear();
+            //var plainText = sb.ToString();
+            //sb.Clear();
             var regexNodesList = new List<RegexNodeBase>();
 
             //var arr = plainText.Split(';');
@@ -161,7 +173,7 @@ public static class HybridParser
             //{
             //    regexNodesList.Add(new CommandNode());
             //}
-            Debug.Log($"plainText = {plainText}");
+            //Debug.Log($"plainText = {plainText}");
 
             for (int j = 0; j < regexNodesList.Count; j++)
                 parentNode.Accept(regexNodesList[j]);

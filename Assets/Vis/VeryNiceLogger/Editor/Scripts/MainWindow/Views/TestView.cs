@@ -28,10 +28,12 @@ public class TestView : ViewBase<Config>
 
             //}
 
-            var sdaiofj = (CurlyBracketsNode)HybridParser.Parse(_text);
+            //var sdaiofj = (CurlyBracketsNode)HybridParser.Parse(_text);
+            //_result = processCurly(sdaiofj, _text, _text);
+
+            var sdaiofj = RecursiveParserV2.Parse(_text);
 
 
-            _result = processCurly(sdaiofj, _text, _text);
             //_result = sb.ToString();
             //sb.Clear();
         }
@@ -47,7 +49,10 @@ public class TestView : ViewBase<Config>
                 result = processCommand(curly.ChildNodes[i] as CommandNode, result, input);
         }
 
-        result = $"{result.Substring(0, curly.StartIndex + 1)}MyLog.LogBlock({curly.StartLine}, {curly.StartPosition});{result.Substring(curly.StartIndex + 1)}";
+        //Debug.Log($"curly.PrecedingExpression = {curly.PrecedingExpression}");
+
+        if (curly.ChildNodes.Count > 0 && curly.IsBlocksContainer)
+            result = $"{result.Substring(0, curly.StartIndex + 1)}MyLog.LogBlock({curly.StartLine}, {curly.StartPosition});{result.Substring(curly.StartIndex + 1)}";
 
         return result;
     }
