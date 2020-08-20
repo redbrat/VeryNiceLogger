@@ -33,6 +33,10 @@ public class TestView : ViewBase<Config>
 
             var sdaiofj = RecursiveParserV2.Parse(_text);
 
+            var sb = new StringBuilder();
+            sdaiofj.Fill(sb, _text);
+            _result = sb.ToString();
+            sb.Clear();
 
             //_result = sb.ToString();
             //sb.Clear();
