@@ -94,10 +94,11 @@ public static class RecursiveParserV2
         //{ };
 
         var arrowEncountered = false;
-        var isInsideGenericsOutsideRoundBrackets = 0;
+        //var isInsideGenericsOutsideRoundBrackets = 0;
         var isInsideGenericsInsideRoundBrackets = 0;
         var isInsideRoundBrackets = false;
-        var sb = new StringBuilder();
+        var parametersSb = new StringBuilder();
+        var betweenCurlyAndPotentialRoundSb = new StringBuilder();
 
         var debugLastLetters = default(string);
         var debguLastLettersCount = 36;
@@ -107,24 +108,24 @@ public static class RecursiveParserV2
             var letter = text[i];
             debugLastLetters = text.Substring(Mathf.Max(0, i - debguLastLettersCount), Mathf.Min(debguLastLettersCount, i));
 
-            if (isInsideGenericsOutsideRoundBrackets > 0)
-            {
-                if (letter == '<')
-                    isInsideGenericsOutsideRoundBrackets--;
-                else if (letter == '>')
-                    isInsideGenericsOutsideRoundBrackets--;
-                continue;
-            }
+            //if (isInsideGenericsOutsideRoundBrackets > 0)
+            //{
+            //    if (letter == '<')
+            //        isInsideGenericsOutsideRoundBrackets--;
+            //    else if (letter == '>')
+            //        isInsideGenericsOutsideRoundBrackets--;
+            //    continue;
+            //}
             switch (letter)
             {
                 case '=':
                 case ' ':
                     if (isInsideRoundBrackets)
-                        sb.Insert(0, letter); //Внутри скобок мы все это добавляем
-                    else if (sb.Length > 0) // Если мы натыкаемся на нелитерал, мы не в скобках и мы уже что-то записали, то это может быть только нелитерал, идущий перед литералом-параметром лямбды
+                        parametersSb.Insert(0, letter); //Внутри скобок мы все это добавляем
+                    else if (parametersSb.Length > 0) // Если мы натыкаемся на нелитерал, мы не в скобках и мы уже что-то записали, то это может быть только нелитерал, идущий перед литералом-параметром лямбды
                     {
-                        parameters.Add(new Parameter(sb.ToString()));
-                        sb.Clear();
+                        parameters.Add(new Parameter(parametersSb.ToString()));
+                        parametersSb.Clear();
                         result.IsLambda = true;
                         result.Parameters = parameters;
                         goto end; //Параметры закрыты, нам здесь больше делать нечего.
@@ -144,16 +145,16 @@ public static class RecursiveParserV2
                     }
                     else if (isInsideRoundBrackets) //Если мы внутри круглых скобок - дженерики записываем
                     {
-                        sb.Insert(0, letter);
+                        parametersSb.Insert(0, letter);
                         isInsideGenericsInsideRoundBrackets++;
                     }
                     else
-                        isInsideGenericsOutsideRoundBrackets++;
+                        i = parseGenericsReverse(text, i, betweenCurlyAndPotentialRoundSb);
                     break;
                 case '<':
                     if (isInsideRoundBrackets) //Если мы внутри круглых скобок - дженерики записываем
                     {
-                        sb.Insert(0, letter);
+                        parametersSb.Insert(0, letter);
                         isInsideGenericsInsideRoundBrackets--;
                     }
                     break;
@@ -186,10 +187,10 @@ public static class RecursiveParserV2
                 case '(':
                     if (isInsideRoundBrackets)
                     {
-                        if (sb.Length > 0)
+                        if (parametersSb.Length > 0)
                         {
-                            parameters.Add(new Parameter(sb.ToString()));
-                            sb.Clear();
+                            parameters.Add(new Parameter(parametersSb.ToString()));
+                            parametersSb.Clear();
                         }
                         //Если мы видим открывающие скобки, то дальше мы можем вполне увидеть имя метода
                         result.Method = parseMethod(text, i - 1);
@@ -197,10 +198,10 @@ public static class RecursiveParserV2
                     }
                     else //Если мы наткнулись на открывающую скобку, но не наткнулись перед этим на закрывающую - значит мы вышли из нашего scope (допустим мы теперь в скбоках, принимающих лямбду)
                     {
-                        if (sb.Length > 0)
+                        if (parametersSb.Length > 0)
                         {
-                            parameters.Add(new Parameter(sb.ToString()));
-                            sb.Clear();
+                            parameters.Add(new Parameter(parametersSb.ToString()));
+                            parametersSb.Clear();
                         }
                         goto end; //Параметры закрыты, нам здесь больше делать нечего.
                     }
@@ -208,29 +209,47 @@ public static class RecursiveParserV2
                     if (isInsideRoundBrackets)
                     {
                         if (isInsideGenericsInsideRoundBrackets > 0) //Запятые внутри дженериков - нормально
-                            sb.Insert(0, letter);
+                            parametersSb.Insert(0, letter);
                         else
                         {
-                            parameters.Add(new Parameter(sb.ToString()));
-                            sb.Clear();
+                            parameters.Add(new Parameter(parametersSb.ToString()));
+                            parametersSb.Clear();
                         }
                     }
                     break;
                 default:
                     //сюда отбираются литералы - их мы читаем только если мы встретили стрелку (один параметр) или круглые скобки (много параметров)
                     if (arrowEncountered || isInsideRoundBrackets)
-                        sb.Insert(0, letter);
+                        parametersSb.Insert(0, letter);
                     else
                     { //Этот случай происходит, когда у нас перед блоком стоит определение класса или неймспейса - сразу идут литералы и надо выходить
-                        sb.Clear();
-                        result.Class = parseClassOrNamespace(text, i, "class");
-                        result.Namespace = parseClassOrNamespace(text, i, "namespace");
+                        parametersSb.Clear();
+
+                        var betweenCurlyAndPotentialRoundResult = betweenCurlyAndPotentialRoundSb.ToString();
+                        betweenCurlyAndPotentialRoundSb.Clear();
+
+                        var classResult = parseClassOrNamespace(text, i, "class");
+                        if (classResult != default)
+                        {
+                            classResult = classResult.Trim();
+                            if (classResult.Length > 0)
+                                result.Class = $"{classResult}{betweenCurlyAndPotentialRoundResult}";
+                        }
+
+                        var namespaceResult = parseClassOrNamespace(text, i, "namespace");
+                        if (namespaceResult != default)
+                        {
+                            namespaceResult = namespaceResult.Trim();
+                            if (namespaceResult.Length > 0)
+                                result.Namespace = $"{namespaceResult}{betweenCurlyAndPotentialRoundResult}";
+                        }
+
                         goto end;
                     }
                     break;
             }
         }
-        sb.Clear();
+        parametersSb.Clear();
     end:
         return result;
     }
@@ -293,11 +312,11 @@ public static class RecursiveParserV2
             {
                 case '>':
                     genericsLevel++;
-                    addToSb.Append(letter);
+                    addToSb.Insert(0, letter);
                     break;
                 case '<':
                     genericsLevel--;
-                    addToSb.Append(letter);
+                    addToSb.Insert(0, letter);
                     if (genericsLevel == 0)
                         return i;
                     break;
@@ -311,7 +330,7 @@ public static class RecursiveParserV2
                 case '\r': //Переносы строки, как и возвращение каретки нам без надобности
                     break;
                 default:
-                    addToSb.Append(letter);
+                    addToSb.Insert(0, letter);
                     break;
             }
         }

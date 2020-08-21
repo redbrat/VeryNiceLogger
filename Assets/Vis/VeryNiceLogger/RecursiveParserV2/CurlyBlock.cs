@@ -25,16 +25,16 @@ public class CurlyBlock
             var nextCommand = nextCommandBlockIndex >= 0 ? _commands[nextCommandBlockIndex] : -1;
 
             if (i == EndIndex)
-                sb.Insert(0, $"#Block {ToString()} End.");
+                sb.Insert(0, $"#Block {ToString()} End#");
             else if (i == StartIndex)
             {
-                sb.Insert(0, $"#Block {ToString()} Start.");
+                sb.Insert(0, $"#Block {ToString()} Start#");
                 return i;
             }
             else if (i == nextCommand)
             {
                 nextCommandBlockIndex--;
-                sb.Insert(0, $"#Command of Block {ToString()}");
+                sb.Insert(0, $"#Command of Block {ToString()}#");
             }
             else if (nextChildBlock != default && i == nextChildBlock.EndIndex)
             {
