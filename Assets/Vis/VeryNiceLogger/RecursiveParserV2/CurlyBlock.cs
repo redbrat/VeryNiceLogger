@@ -5,13 +5,15 @@ using System.Text;
 public class CurlyBlock
 {
     public CurlyBlockInfo Info;
-    public int StartIndex;
+    public readonly int StartIndex;
     public int EndIndex;
 
     public string DebugRepresentationOfContents;
 
     private IList<int> _commands = new List<int>();
     private IList<CurlyBlock> _childBlocks = new List<CurlyBlock>();
+
+    public CurlyBlock(int startIndex) => StartIndex = startIndex;
 
     public int Fill(StringBuilder sb, string text)
     {
@@ -67,6 +69,8 @@ public class CurlyBlock
             _sb.Append($"Class {Info.Class}");
         else if (Info.Namespace != default)
             _sb.Append($"Namespace {Info.Namespace}");
+        else if (Info.Property != default)
+            _sb.Append($"Property {Info.Property}");
         else if (Info.IsLambda)
         {
             _sb.Append($"Lambda (");

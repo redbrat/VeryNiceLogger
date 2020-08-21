@@ -1,17 +1,13 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq.Expressions;
-using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 public static class RecursiveParserV2
 {
     public static CurlyBlock Parse(string text)
     {
-        var result = new CurlyBlock();
+        var result = new CurlyBlock(0);
         parseBlockRecursively(text, 0, result);
         return result;
     }
@@ -21,7 +17,6 @@ public static class RecursiveParserV2
         var info = parseCurlyBlockParameters(text, i - 2);
 
         result.Info = info;
-        result.StartIndex = i;
 
         for (; i < text.Length; i++)
         {
@@ -40,7 +35,7 @@ public static class RecursiveParserV2
                     break;
 
                 case '{':
-                    var newCurlyBlock = new CurlyBlock();
+                    var newCurlyBlock = new CurlyBlock(i);
                     result.AppendChildBlock(newCurlyBlock);
                     i = parseBlockRecursively(text, i + 1, newCurlyBlock);
                     break;
@@ -222,27 +217,51 @@ public static class RecursiveParserV2
                     if (arrowEncountered || isInsideRoundBrackets)
                         parametersSb.Insert(0, letter);
                     else
-                    { //Этот случай происходит, когда у нас перед блоком стоит определение класса или неймспейса - сразу идут литералы и надо выходить
+                    { //Этот случай происходит, когда у нас перед блоком стоит определение класса, неймспейса или проперти - сразу идут литералы и надо выходить
                         parametersSb.Clear();
 
                         var betweenCurlyAndPotentialRoundResult = betweenCurlyAndPotentialRoundSb.ToString();
                         betweenCurlyAndPotentialRoundSb.Clear();
 
-                        var classResult = parseClassOrNamespace(text, i, "class");
-                        if (classResult != default)
+                        var enumerator = parseCurlyBlockPrefix(text, i);
+                        var defaultExpression = default(StringBuilder);
+                        while (enumerator.MoveNext())
                         {
-                            classResult = classResult.Trim();
-                            if (classResult.Length > 0)
-                                result.Class = $"{classResult}{betweenCurlyAndPotentialRoundResult}";
+                            var (keyword, expression) = enumerator.Current;
+                            switch (keyword)
+                            {
+                                case "class":
+                                    result.Class = $"{expression.ToString().Trim()}{betweenCurlyAndPotentialRoundResult}";
+                                    expression.Clear();
+                                    goto end;
+                                case "namespace":
+                                    result.Namespace = $"{expression.ToString().Trim()}{betweenCurlyAndPotentialRoundResult}";
+                                    expression.Clear();
+                                    goto end;
+                                default:
+                                    defaultExpression = expression;
+                                    break;
+                            }
                         }
 
-                        var namespaceResult = parseClassOrNamespace(text, i, "namespace");
-                        if (namespaceResult != default)
-                        {
-                            namespaceResult = namespaceResult.Trim();
-                            if (namespaceResult.Length > 0)
-                                result.Namespace = $"{namespaceResult}{betweenCurlyAndPotentialRoundResult}";
-                        }
+                        result.Property = $"{defaultExpression.ToString().Trim()}{betweenCurlyAndPotentialRoundResult}";
+                        defaultExpression.Clear();
+
+                        //var classResult = parseClassOrNamespace(text, i, "class");
+                        //if (classResult != default)
+                        //{
+                        //    classResult = classResult.Trim();
+                        //    if (classResult.Length > 0)
+                        //        result.Class = $"{classResult}{betweenCurlyAndPotentialRoundResult}";
+                        //}
+
+                        //var namespaceResult = parseClassOrNamespace(text, i, "namespace");
+                        //if (namespaceResult != default)
+                        //{
+                        //    namespaceResult = namespaceResult.Trim();
+                        //    if (namespaceResult.Length > 0)
+                        //        result.Namespace = $"{namespaceResult}{betweenCurlyAndPotentialRoundResult}";
+                        //}
 
                         goto end;
                     }
@@ -379,10 +398,10 @@ public static class RecursiveParserV2
         return -1;
     }
 
-    private static string parseClassOrNamespace(string text, int i, string whatToFind)
+    private static IEnumerator<(string word, StringBuilder allTextSb)> parseCurlyBlockPrefix(string text, int i/*, string whatToFind*/)
     {
         var commonSb = new StringBuilder();
-        var classOrNamespaceSB = new StringBuilder();
+        var wordSB = new StringBuilder();
 
         for (; i >= 0; i--)
         {
@@ -400,16 +419,19 @@ public static class RecursiveParserV2
                 case '\r':
                 case ' ':
                     //В определении класса или неймспейса литералы разделяются пробелами или новой строкой (\n уже занят, поэтому берем \r - он тоже всегда встречается), поэтому встретив пробел это для нас знак что можно проверять наличие класса
-                    var potentialClassString = classOrNamespaceSB.ToString();
-                    classOrNamespaceSB.Clear();
-                    if (potentialClassString == whatToFind)
-                    {
-                        var classOrNamespaceDefinition = commonSb.ToString();
-                        commonSb.Clear();
-                        return classOrNamespaceDefinition;
-                    }
-                    else
-                        commonSb.Insert(0, potentialClassString);
+                    var wordString = wordSB.ToString();
+                    wordSB.Clear();
+                    yield return (wordString, commonSb);
+                    //if (wordString == whatToFind)
+                    //{
+                    //    var classOrNamespaceDefinition = commonSb.ToString();
+                    //    commonSb.Clear();
+                    //    return classOrNamespaceDefinition;
+                    //}
+                    //else
+                    commonSb.Insert(0, wordString);
+                    if (letter == ' ') //\r нам ни к чему
+                        commonSb.Insert(0, letter);
                     break;
                 case '}':
                 case ']':
@@ -418,13 +440,14 @@ public static class RecursiveParserV2
                 case '[':
                 case '(':
                 case ';':
-                    return default; //В определении класса или неймспейса не может быть этих скобок, поэтому увидев их мы сразу идем взад. Также если наткнулись на ; то это уже скорее всего юзинги пошли.
+                    goto end; //В определении класса или неймспейса не может быть этих скобок, поэтому увидев их мы сразу идем взад. Также если наткнулись на ; то это уже скорее всего юзинги пошли.
                 default:
-                    classOrNamespaceSB.Insert(0, letter);
+                    wordSB.Insert(0, letter);
                     break;
             }
         }
-        return default;
+    end:
+        yield return (default, commonSb);
     }
 
     private static int parseMultiLineComment(string text, int i)

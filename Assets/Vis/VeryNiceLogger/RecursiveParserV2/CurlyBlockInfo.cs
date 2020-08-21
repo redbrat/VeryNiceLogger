@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using System.Collections.Generic;
 
 public class CurlyBlockInfo
 {
@@ -9,4 +7,5 @@ public class CurlyBlockInfo
     public string Method;
     public string Class;
     public string Namespace;
+    public string Property;
 }
