@@ -5,7 +5,11 @@ public class CurlyBlockInfo
     public IList<Parameter> Parameters;
     public bool IsLambda;
     public string Method;
+    public string GenericNarrowing;
     public string Class;
     public string Namespace;
     public string Property;
+    public string PropertyGet;
+    public string PropertySet;
+    //public string GenericNarrowing;
 }

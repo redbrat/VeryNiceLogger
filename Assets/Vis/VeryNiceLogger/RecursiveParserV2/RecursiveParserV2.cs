@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using TMPro;
 using UnityEngine;
 
 public static class RecursiveParserV2
@@ -119,17 +120,15 @@ public static class RecursiveParserV2
                         parametersSb.Insert(0, letter); //Внутри скобок мы все это добавляем
                     else if (parametersSb.Length > 0) // Если мы натыкаемся на нелитерал, мы не в скобках и мы уже что-то записали, то это может быть только нелитерал, идущий перед литералом-параметром лямбды
                     {
-                        parameters.Add(new Parameter(parametersSb.ToString()));
+                        parameters.Add(new Parameter(parametersSb.ToString())); //Add, потому что не в скобках может быть только 1 параметр
                         parametersSb.Clear();
                         result.IsLambda = true;
                         result.Parameters = parameters;
                         goto end; //Параметры закрыты, нам здесь больше делать нечего.
                     }
                     break;
-                case '\r':
-                    break;
-                //Если натыкаемся на точку с запятой значит мы натнулись на предыдущую команду - дальше нам здесь делать нечего.
                 case ';':
+                    //Если натыкаемся на точку с запятой значит мы наткнулись на предыдущую команду - дальше нам здесь делать нечего.
                     goto end;
                 case '>':
                     if (text[i - 1] == '=')
@@ -143,7 +142,7 @@ public static class RecursiveParserV2
                         parametersSb.Insert(0, letter);
                         isInsideGenericsInsideRoundBrackets++;
                     }
-                    else
+                    else //Дженерики у нас могут быть у класса, надо записать их в определение
                         i = parseGenericsReverse(text, i, betweenCurlyAndPotentialRoundSb);
                     break;
                 case '<':
@@ -156,6 +155,8 @@ public static class RecursiveParserV2
                 case '/':
                     if (text[i - 1] == '*')
                         i = parseMultiLineCommentReverse(text, i);
+                    break;
+                case '\r': //\r стараемся игнорировать из-за ее непостоянности
                     break;
                 case '\n':
                     //Если встретили символ новой строки - проверяем всю эту строку на предмет комментариев, которые можно заигнорировать
@@ -184,18 +185,27 @@ public static class RecursiveParserV2
                     {
                         if (parametersSb.Length > 0)
                         {
-                            parameters.Add(new Parameter(parametersSb.ToString()));
+                            parameters.Insert(0, new Parameter(parametersSb.ToString()));
                             parametersSb.Clear();
                         }
                         //Если мы видим открывающие скобки, то дальше мы можем вполне увидеть имя метода
                         result.Method = parseMethod(text, i - 1);
+
+                        var genericNarrowing = betweenCurlyAndPotentialRoundSb.ToString().Trim();
+                        betweenCurlyAndPotentialRoundSb.Clear();
+
+                        if (genericNarrowing.Length > 0)
+                            result.GenericNarrowing = genericNarrowing;
+
+                        result.Method = parseMethod(text, i - 1);
+
                         goto end; //Параметры закрыты, нам здесь больше делать нечего.
                     }
                     else //Если мы наткнулись на открывающую скобку, но не наткнулись перед этим на закрывающую - значит мы вышли из нашего scope (допустим мы теперь в скбоках, принимающих лямбду)
                     {
                         if (parametersSb.Length > 0)
                         {
-                            parameters.Add(new Parameter(parametersSb.ToString()));
+                            parameters.Add(new Parameter(parametersSb.ToString())); //Add, потому что не в скобках может быть только 1 параметр
                             parametersSb.Clear();
                         }
                         goto end; //Параметры закрыты, нам здесь больше делать нечего.
@@ -207,7 +217,7 @@ public static class RecursiveParserV2
                             parametersSb.Insert(0, letter);
                         else
                         {
-                            parameters.Add(new Parameter(parametersSb.ToString()));
+                            parameters.Insert(0, new Parameter(parametersSb.ToString()));
                             parametersSb.Clear();
                         }
                     }
@@ -220,32 +230,82 @@ public static class RecursiveParserV2
                     { //Этот случай происходит, когда у нас перед блоком стоит определение класса, неймспейса или проперти - сразу идут литералы и надо выходить
                         parametersSb.Clear();
 
-                        var betweenCurlyAndPotentialRoundResult = betweenCurlyAndPotentialRoundSb.ToString();
+                        var betweenCurlyAndPotentialRoundResult = betweenCurlyAndPotentialRoundSb.ToString().Trim();
                         betweenCurlyAndPotentialRoundSb.Clear();
 
                         var enumerator = parseCurlyBlockPrefix(text, i);
                         var defaultExpression = default(StringBuilder);
                         while (enumerator.MoveNext())
                         {
-                            var (keyword, expression) = enumerator.Current;
+                            var (index, keyword, expression) = enumerator.Current;
                             switch (keyword)
                             {
                                 case "class":
-                                    result.Class = $"{expression.ToString().Trim()}{betweenCurlyAndPotentialRoundResult}";
+                                    result.Class = expression.ToString().Trim();
                                     expression.Clear();
+
+                                    if (betweenCurlyAndPotentialRoundResult.Length > 0)
+                                        result.GenericNarrowing = betweenCurlyAndPotentialRoundResult;
                                     goto end;
                                 case "namespace":
-                                    result.Namespace = $"{expression.ToString().Trim()}{betweenCurlyAndPotentialRoundResult}";
+                                    result.Namespace = expression.ToString().Trim();
                                     expression.Clear();
                                     goto end;
                                 default:
                                     defaultExpression = expression;
+                                    i = index;
                                     break;
                             }
                         }
 
-                        result.Property = $"{defaultExpression.ToString().Trim()}{betweenCurlyAndPotentialRoundResult}";
+                        var notAnImmediateClassOrNamespace = $"{defaultExpression.ToString().Trim()}{betweenCurlyAndPotentialRoundResult}";
                         defaultExpression.Clear();
+
+                        if (!notAnImmediateClassOrNamespace.Contains(":"))
+                        {
+                            //гет и сет, слава богу, не могут содержать всяких дженериков, параметров и т.д. - они всегда либо состоят из get\set либо оканчиваются через пробел или новую строку
+                            if (notAnImmediateClassOrNamespace.EndsWith("get") || notAnImmediateClassOrNamespace.EndsWith("set"))
+                            {
+                                if (notAnImmediateClassOrNamespace.Length == 3)
+                                {
+                                    switch (notAnImmediateClassOrNamespace)
+                                    {
+                                        case "get":
+                                            result.PropertyGet = notAnImmediateClassOrNamespace;
+                                            break;
+                                        case "set":
+                                            result.PropertySet = notAnImmediateClassOrNamespace;
+                                            break;
+                                    }
+                                }
+                                else
+                                {
+                                    switch (notAnImmediateClassOrNamespace[notAnImmediateClassOrNamespace.Length - 4])
+                                    {
+                                        case '\r':
+                                        case '\n':
+                                            switch (notAnImmediateClassOrNamespace.Substring(notAnImmediateClassOrNamespace.Length - 3))
+                                            {
+                                                case "get":
+                                                    result.PropertyGet = notAnImmediateClassOrNamespace;
+                                                    break;
+                                                case "set":
+                                                    result.PropertySet = notAnImmediateClassOrNamespace;
+                                                    break;
+                                            }
+                                            break;
+                                        default:
+                                            result.Property = notAnImmediateClassOrNamespace;
+                                            break;
+                                    }
+                                }
+                            }
+                            else
+                                result.Property = notAnImmediateClassOrNamespace;
+                            goto end;
+                        }
+                        else //а если встретилось :, значит мы прочитали уточнение дженерика функции или класса и надо парсить дальше
+                            betweenCurlyAndPotentialRoundSb.Append(notAnImmediateClassOrNamespace);
 
                         //var classResult = parseClassOrNamespace(text, i, "class");
                         //if (classResult != default)
@@ -263,7 +323,6 @@ public static class RecursiveParserV2
                         //        result.Namespace = $"{namespaceResult}{betweenCurlyAndPotentialRoundResult}";
                         //}
 
-                        goto end;
                     }
                     break;
             }
@@ -287,21 +346,21 @@ public static class RecursiveParserV2
                         i = parseMultiLineCommentReverse(text, i);
                     break;
                 case '\n':
-                    i = parseSingleLineCommentReverse(text, i);
-                    break;
-                //В имени метода могут быть дженерики, поэтому допустимы угловые скобки, пробелы, запятые внутри них и литералы везде, но все остальное ни-ни-ни
-                case '>':
-                    i = parseGenericsReverse(text, i, sb);
-                    break;
-                case '\r':
                 case ' ':
-                    //В имени метода литералы разделяются пробелами или новой строкой (\n уже занят, поэтому берем \r - он тоже всегда встречается), поэтому встретив пробел это для нас знак что можно проверять наличие имени метода
+                    //В имени метода литералы разделяются пробелами или новой строкой, поэтому встретив их это для нас знак что можно проверять наличие имени метода
                     if (sb.Length > 0)
                     {
                         var potentialMethodString = sb.ToString();
                         sb.Clear();
                         return potentialMethodString;
                     }
+                    else if (letter == '\n') //Но если имени метода нет а есть перенос строки - проверяем на комменты и идем дальше
+                        i = parseSingleLineCommentReverse(text, i);
+                    break;
+                case '\r': //Игнорируем \r
+                    break;
+                case '>': //В имени метода могут быть дженерики, поэтому допустимы угловые скобки, пробелы, запятые внутри них и литералы везде, но все остальное ни-ни-ни
+                    i = parseGenericsReverse(text, i, sb);
                     break;
                 case '}':
                 case ']':
@@ -344,9 +403,10 @@ public static class RecursiveParserV2
                         i = parseMultiLineCommentReverse(text, i);
                     break;
                 case '\n':
+                    addToSb.Insert(0, letter); //Мы должны добавлять знак переноса строки, т.к. это такой же полноправный разделитель всяких ключевых и не очень слов как и пробел
                     i = parseSingleLineCommentReverse(text, i);
                     break;
-                case '\r': //Переносы строки, как и возвращение каретки нам без надобности
+                case '\r': //а вот возвращение каретки нам без надобности
                     break;
                 default:
                     addToSb.Insert(0, letter);
@@ -398,7 +458,7 @@ public static class RecursiveParserV2
         return -1;
     }
 
-    private static IEnumerator<(string word, StringBuilder allTextSb)> parseCurlyBlockPrefix(string text, int i/*, string whatToFind*/)
+    private static IEnumerator<(int index, string word, StringBuilder allTextSb)> parseCurlyBlockPrefix(string text, int i/*, string whatToFind*/)
     {
         var commonSb = new StringBuilder();
         var wordSB = new StringBuilder();
@@ -414,14 +474,11 @@ public static class RecursiveParserV2
                         i = parseMultiLineCommentReverse(text, i);
                     break;
                 case '\n':
-                    i = parseSingleLineCommentReverse(text, i);
-                    break;
-                case '\r':
                 case ' ':
-                    //В определении класса или неймспейса литералы разделяются пробелами или новой строкой (\n уже занят, поэтому берем \r - он тоже всегда встречается), поэтому встретив пробел это для нас знак что можно проверять наличие класса
+                    //В определении класса или неймспейса литералы разделяются пробелами или новой строкой, поэтому встретив их это для нас знак что можно проверять наличие класса.
                     var wordString = wordSB.ToString();
                     wordSB.Clear();
-                    yield return (wordString, commonSb);
+                    yield return (i, wordString, commonSb); //тут просто i, потому что если там класс или неймспейс - мы все равно сразу выйдем, а если не выйдем - значит функция, а значит мы выйдем не здесь а по ), где уже будет +1
                     //if (wordString == whatToFind)
                     //{
                     //    var classOrNamespaceDefinition = commonSb.ToString();
@@ -430,8 +487,11 @@ public static class RecursiveParserV2
                     //}
                     //else
                     commonSb.Insert(0, wordString);
-                    if (letter == ' ') //\r нам ни к чему
-                        commonSb.Insert(0, letter);
+                    commonSb.Insert(0, letter);
+                    if (letter == '\n') //Если буква - перенос, проверяем на комменты.
+                        i = parseSingleLineCommentReverse(text, i);
+                    break;
+                case '\r': //Игнорируем \r
                     break;
                 case '}':
                 case ']':
@@ -447,7 +507,7 @@ public static class RecursiveParserV2
             }
         }
     end:
-        yield return (default, commonSb);
+        yield return (i + 1, default, commonSb); // + 1 потому что выйдя из префикса нам еще парсить параметры, а значит - распознать )
     }
 
     private static int parseMultiLineComment(string text, int i)

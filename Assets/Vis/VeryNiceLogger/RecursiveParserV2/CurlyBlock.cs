@@ -51,12 +51,16 @@ public class CurlyBlock
     internal void AppendCommand(int commandIndex) => _commands.Add(commandIndex);
     internal void AppendChildBlock(CurlyBlock newCurlyBlock) => _childBlocks.Add(newCurlyBlock);
 
+
+    private class newChallenge<T>where T:IList<(string,int,IDictionary<IEnumerable<int>,(string,List<int>)>)>{
+        private List<(int,string,IDictionary<IEnumerable<int>,(string,List<int>)>)>getMyList(){return default;}
+    }
     private StringBuilder _sb = new StringBuilder();
     public override string ToString()
     {
         if (Info.Method != default)
         {
-            _sb.Append($"Method {Info.Method} (");
+            _sb.Append($"Method {Info.Method}(");
             for (int i = 0; i < Info.Parameters.Count; i++)
             {
                 _sb.Append(Info.Parameters[i].ToString());
@@ -64,13 +68,23 @@ public class CurlyBlock
                     _sb.Append(", ");
             }
             _sb.Append($")");
+            if (Info.GenericNarrowing != default)
+                _sb.Append(Info.GenericNarrowing);
         }
         else if (Info.Class != default)
+        {
             _sb.Append($"Class {Info.Class}");
+            if (Info.GenericNarrowing != default)
+                _sb.Append(Info.GenericNarrowing);
+        }
         else if (Info.Namespace != default)
             _sb.Append($"Namespace {Info.Namespace}");
         else if (Info.Property != default)
             _sb.Append($"Property {Info.Property}");
+        else if (Info.PropertyGet != default)
+            _sb.Append($"PropertyGet {Info.PropertyGet}");
+        else if (Info.PropertySet != default)
+            _sb.Append($"PropertySet {Info.PropertySet}");
         else if (Info.IsLambda)
         {
             _sb.Append($"Lambda (");
