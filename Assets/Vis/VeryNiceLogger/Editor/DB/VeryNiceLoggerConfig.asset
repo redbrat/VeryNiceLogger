@@ -12,5 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1bc0f66bad3eb434883a851a901853fb, type: 3}
   m_Name: VeryNiceLoggerConfig
   m_EditorClassIdentifier: 
+  LinesLogging: 0
+  ParametersLogging: 0
   SpecialFolders: 255
   NotVerySpecialFolders: []

@@ -41,6 +41,19 @@ public class TestView : ViewBase<Config>
             //_result = sb.ToString();
             //sb.Clear();
         }
+        if (GUILayout.Button("Test files enumeration"))
+        {
+            var enumerator = FilesEnumratator.EnumerateFilesInProject(config);
+            var i = 0;
+            while(enumerator.MoveNext())
+            {
+                Debug.LogError($"enumerator file = {enumerator.Current}");
+                //EditorUtility.DisplayProgressBar("Simple Progress Bar", "Shows a progress bar for the given seconds", enumerator.Current.Item2 / (float)enumerator.Current.Item3);
+                i++;
+            }
+            Debug.LogError($"i = {i}");
+            //EditorUtility.ClearProgressBar();
+        }
     }
 
     private string processCurly(CurlyBracketsNode curly, string result, string input)
