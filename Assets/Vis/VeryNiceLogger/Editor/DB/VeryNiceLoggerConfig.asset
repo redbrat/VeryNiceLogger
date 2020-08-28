@@ -15,4 +15,9 @@ MonoBehaviour:
   LinesLogging: 0
   ParametersLogging: 0
   SpecialFolders: 255
-  NotVerySpecialFolders: []
+  NotVerySpecialFolders:
+  - {fileID: 102900000, guid: e25e4816042b7c047a17a5ef0cff6f4b, type: 3}
+  - {fileID: 102900000, guid: f54d1bd14bd3ca042bd867b519fee8cc, type: 3}
+  - {fileID: 102900000, guid: 2f067159cd9838247869b0f4a6caf9ae, type: 3}
+  - {fileID: 102900000, guid: f94bea4bd65c7b24aa7f413c353ee3e3, type: 3}
+  - {fileID: 102900000, guid: 23b52188718e116479e1bf2af122ca86, type: 3}

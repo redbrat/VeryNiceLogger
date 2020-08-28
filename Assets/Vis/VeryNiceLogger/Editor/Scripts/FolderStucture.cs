@@ -1,15 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using UnityEditor;
+using UnityEngine;
 
 public class FolderStucture
 {
     private readonly DirectoryInfo _parentFolder;
     private readonly List<int> _subfolderIndecies;
     private readonly SpecialFolderType _ignoredSpecialFolders;
+    private readonly IList<DefaultAsset> _ignoredFolders;
 
-    public FolderStucture(DirectoryInfo folder, SpecialFolderType ignoredSpecialFolders)
+    public FolderStucture(DirectoryInfo folder, SpecialFolderType ignoredSpecialFolders, IList<DefaultAsset> ignoredFolders)
     {
+        _ignoredFolders = ignoredFolders;
         _ignoredSpecialFolders = ignoredSpecialFolders;
         _parentFolder = folder;
         _subfolderIndecies = new List<int>();
@@ -54,11 +58,6 @@ public class FolderStucture
             }
             else
                 currentFolder = subfolders[_subfolderIndecies[i]];
-        }
-
-        if (currentFolder.FullName.Contains("Utils"))
-        {
-
         }
 
         if (isIgnored(currentFolder))
@@ -108,6 +107,9 @@ public class FolderStucture
             case "Plugins":
                 return (_ignoredSpecialFolders & SpecialFolderType.Plugins) != 0;
             default:
+                var folderAsset = AssetDatabase.LoadAssetAtPath<DefaultAsset>(folder.FullName.Substring(Application.dataPath.Length - "Assets".Length));
+                if (_ignoredFolders.Contains(folderAsset))
+                    return true;
                 return false;
         }
     }
