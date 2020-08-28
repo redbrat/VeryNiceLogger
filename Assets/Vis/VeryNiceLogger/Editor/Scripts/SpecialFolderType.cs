@@ -5,9 +5,10 @@ public enum SpecialFolderType : byte
 {
     Editor = 1,
     EditorDefaultResources = 2,
-    Gizmoz = 4,
+    Gizmos = 4,
     Resources = 8,
     StandardAssets = 16,
     StreamingAssets = 32,
-    HiddenAssets = 64
+    HiddenAssets = 64,
+    Plugins = 128
 }

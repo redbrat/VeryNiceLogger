@@ -26,7 +26,7 @@ public class ConfigView : ViewBase<Config>
             _reorderableList = new ReorderableList(serializedConfig, serializedConfig.FindProperty("NotVerySpecialFolders"), true, false, true, true);
             _reorderableList.onAddCallback = (ReorderableList list) =>
             {
-                config.NotVerySpecialFolders.Add(string.Empty);
+                config.NotVerySpecialFolders.Add(default);
                 EditorUtility.SetDirty(config);
                 serializedConfig.Update();
             };
@@ -38,7 +38,7 @@ public class ConfigView : ViewBase<Config>
             };
             _reorderableList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
             {
-                var newCustomFolderName = EditorGUI.TextField(rect, config.NotVerySpecialFolders[index]);
+                var newCustomFolderName = (DefaultAsset)EditorGUI.ObjectField(rect, config.NotVerySpecialFolders[index], typeof(DefaultAsset), false);
                 if (newCustomFolderName != config.NotVerySpecialFolders[index])
                 {
                     config.NotVerySpecialFolders[index] = newCustomFolderName;
