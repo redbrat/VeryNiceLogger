@@ -4,7 +4,8 @@ using UnityEngine;
 
 public class ConfigView : ViewBase<Config>
 {
-    private ReorderableList _reorderableList;
+    private ReorderableList _includeReorderableList;
+    private ReorderableList _excludeReorderableList;
 
     public override void Render(Config config)
     {
@@ -20,34 +21,65 @@ public class ConfigView : ViewBase<Config>
             EditorUtility.SetDirty(config);
         }
 
-        EditorGUILayout.LabelField("Ignored Custom Folders:");
-        if (_reorderableList == default)
+        EditorGUILayout.LabelField("Which folders to include (none means every folder included):");
+        if (_includeReorderableList == default)
         {
-            _reorderableList = new ReorderableList(serializedConfig, serializedConfig.FindProperty("NotVerySpecialFolders"), true, false, true, true);
-            _reorderableList.onAddCallback = (ReorderableList list) =>
+            _includeReorderableList = new ReorderableList(serializedConfig, serializedConfig.FindProperty("IncludedFolders"), true, false, true, true);
+            _includeReorderableList.onAddCallback = (ReorderableList list) =>
             {
-                config.NotVerySpecialFolders.Add(default);
+                config.IncludedFolders.Add(default);
                 EditorUtility.SetDirty(config);
                 serializedConfig.Update();
             };
-            _reorderableList.onRemoveCallback = (ReorderableList list) =>
+            _includeReorderableList.onRemoveCallback = (ReorderableList list) =>
             {
-                config.NotVerySpecialFolders.RemoveAt(list.index);
+                config.IncludedFolders.RemoveAt(list.index);
                 EditorUtility.SetDirty(config);
                 serializedConfig.Update();
             };
-            _reorderableList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
+            _includeReorderableList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
             {
-                var newCustomFolderName = (DefaultAsset)EditorGUI.ObjectField(rect, config.NotVerySpecialFolders[index], typeof(DefaultAsset), false);
-                if (newCustomFolderName != config.NotVerySpecialFolders[index])
+                var newCustomFolderName = (DefaultAsset)EditorGUI.ObjectField(rect, config.IncludedFolders[index], typeof(DefaultAsset), false);
+                if (newCustomFolderName != config.IncludedFolders[index])
                 {
-                    config.NotVerySpecialFolders[index] = newCustomFolderName;
+                    config.IncludedFolders[index] = newCustomFolderName;
                     EditorUtility.SetDirty(config);
                     serializedConfig.Update();
                 }
             };
         }
-        _reorderableList.DoLayoutList();
+        _includeReorderableList.DoLayoutList();
+
+        EditorGUILayout.LabelField("Which folders to ignore:");
+        if (_excludeReorderableList == default)
+        {
+            _excludeReorderableList = new ReorderableList(serializedConfig, serializedConfig.FindProperty("ExcludedFolders"), true, false, true, true);
+            _excludeReorderableList.onAddCallback = (ReorderableList list) =>
+            {
+                config.ExcludedFolders.Add(default);
+                EditorUtility.SetDirty(config);
+                serializedConfig.Update();
+            };
+            _excludeReorderableList.onRemoveCallback = (ReorderableList list) =>
+            {
+                config.ExcludedFolders.RemoveAt(list.index);
+                EditorUtility.SetDirty(config);
+                serializedConfig.Update();
+            };
+            _excludeReorderableList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
+            {
+                var newCustomFolderName = (DefaultAsset)EditorGUI.ObjectField(rect, config.ExcludedFolders[index], typeof(DefaultAsset), false);
+                if (newCustomFolderName != config.ExcludedFolders[index])
+                {
+                    config.ExcludedFolders[index] = newCustomFolderName;
+                    EditorUtility.SetDirty(config);
+                    serializedConfig.Update();
+                }
+            };
+        }
+        _excludeReorderableList.DoLayoutList();
+
+        
         //EditorGUILayout.PropertyField(serializedConfig.FindProperty("NotVerySpecialFolders"), new GUIContent("Custom folders: "), true);
         serializedConfig.ApplyModifiedProperties();
     }

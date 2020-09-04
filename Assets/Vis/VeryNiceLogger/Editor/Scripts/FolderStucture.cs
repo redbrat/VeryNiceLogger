@@ -1,19 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-public class FolderStucture
+public struct FolderStucture
 {
     private readonly DirectoryInfo _parentFolder;
     private readonly List<int> _subfolderIndecies;
     private readonly SpecialFolderType _ignoredSpecialFolders;
-    private readonly IList<DefaultAsset> _ignoredFolders;
+    private readonly IList<DefaultAsset> _excludedFolders;
+    private readonly IList<DefaultAsset> _includedFolders;
 
-    public FolderStucture(DirectoryInfo folder, SpecialFolderType ignoredSpecialFolders, IList<DefaultAsset> ignoredFolders)
+    public FolderStucture(DirectoryInfo folder, SpecialFolderType ignoredSpecialFolders, IList<DefaultAsset> includedFolders, IList<DefaultAsset> excludedFolders)
     {
-        _ignoredFolders = ignoredFolders;
+        _includedFolders = includedFolders;
+        _excludedFolders = excludedFolders;
         _ignoredSpecialFolders = ignoredSpecialFolders;
         _parentFolder = folder;
         _subfolderIndecies = new List<int>();
@@ -108,7 +109,9 @@ public class FolderStucture
                 return (_ignoredSpecialFolders & SpecialFolderType.Plugins) != 0;
             default:
                 var folderAsset = AssetDatabase.LoadAssetAtPath<DefaultAsset>(folder.FullName.Substring(Application.dataPath.Length - "Assets".Length));
-                if (_ignoredFolders.Contains(folderAsset))
+                if (_includedFolders.Contains(folderAsset)) //Случай когда один инклюженный фолдер находится в другом инклюженном фолдере - чтобы по два раза их не обрабатывать удаляем
+                    _includedFolders.Remove(folderAsset);
+                if (_excludedFolders.Contains(folderAsset))
                     return true;
                 return false;
         }

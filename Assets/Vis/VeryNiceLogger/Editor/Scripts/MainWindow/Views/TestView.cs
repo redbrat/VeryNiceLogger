@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
@@ -33,10 +35,7 @@ public class TestView : ViewBase<Config>
 
             var sdaiofj = RecursiveParserV2.Parse(_text);
 
-            var sb = new StringBuilder();
-            sdaiofj.Fill(sb, _text);
-            _result = sb.ToString();
-            sb.Clear();
+            _result = sdaiofj.Debug(_text);
 
             //_result = sb.ToString();
             //sb.Clear();
@@ -45,34 +44,36 @@ public class TestView : ViewBase<Config>
         {
             var enumerator = FilesEnumratator.EnumerateFilesInProject(config);
             var i = 0;
-            while(enumerator.MoveNext())
+            var listOfFiles = new List<string>();
+            while (enumerator.MoveNext())
             {
                 Debug.LogError($"enumerator file = {enumerator.Current}");
-                //EditorUtility.DisplayProgressBar("Simple Progress Bar", "Shows a progress bar for the given seconds", enumerator.Current.Item2 / (float)enumerator.Current.Item3);
+                listOfFiles.Add(enumerator.Current);
+
                 i++;
             }
             Debug.LogError($"i = {i}");
-            //EditorUtility.ClearProgressBar();
+
+            var processor = new DefaultProcessor();
+            var listOfFailedParsing = new List<(string file, string error)>();
+            for (i = 0; i < listOfFiles.Count; i++)
+            {
+                EditorUtility.DisplayProgressBar("Simple Progress Bar", listOfFiles[i], i / (float)listOfFiles.Count);
+
+                var text = File.ReadAllText(listOfFiles[i]);
+                //try
+                //{
+                    var parsedText = RecursiveParserV2.Parse(text);
+                    var processedText = parsedText.Process(processor, text);
+                    File.WriteAllText(listOfFiles[i], processedText);
+                //}
+                //catch (Exception e)
+                //{
+                //    listOfFailedParsing.Add((text, e.Message));
+                //}
+            }
+            EditorUtility.ClearProgressBar();
+            Debug.Log($"listOfFailedParsing.Count = {listOfFailedParsing.Count}");
         }
     }
-
-    private string processCurly(CurlyBracketsNode curly, string result, string input)
-    {
-        for (int i = curly.ChildNodes.Count - 1; i >= 0; i--)
-        {
-            if (curly.ChildNodes[i] is CurlyBracketsNode)
-                result = processCurly(curly.ChildNodes[i] as CurlyBracketsNode, result, input);
-            else if (curly.ChildNodes[i] is CommandNode)
-                result = processCommand(curly.ChildNodes[i] as CommandNode, result, input);
-        }
-
-        //Debug.Log($"curly.PrecedingExpression = {curly.PrecedingExpression}");
-
-        if (curly.ChildNodes.Count > 0 && curly.IsBlocksContainer)
-            result = $"{result.Substring(0, curly.StartIndex + 1)}MyLog.LogBlock({curly.StartLine}, {curly.StartPosition});{result.Substring(curly.StartIndex + 1)}";
-
-        return result;
-    }
-
-    private string processCommand(CommandNode command, string result, string input) => $"{result.Substring(0, command.EndIndex + 1)}MyLog.LogCommand({command.EndLine}, {command.EndPosition});{result.Substring(command.EndIndex + 1)}";
 }

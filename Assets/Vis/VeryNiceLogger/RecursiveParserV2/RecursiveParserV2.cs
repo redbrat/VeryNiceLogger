@@ -7,43 +7,62 @@ public static class RecursiveParserV2
 {
     public static CurlyBlock Parse(string text)
     {
-        var result = new CurlyBlock(0);
-        parseBlockRecursively(text, 0, result);
+        var result = new CurlyBlock(0, 0, default);
+        parseBlockRecursively(text, 0, 0, result);
         return result;
     }
 
-    private static int parseBlockRecursively(string text, int i, CurlyBlock result)
+    private static (int index, int line) parseBlockRecursively(string text, int i, int l, CurlyBlock result)
     {
         var info = parseCurlyBlockParameters(text, i - 2);
 
         result.Info = info;
 
+        var debugLastLettersCount = 36;
+
         for (; i < text.Length; i++)
         {
             var letter = text[i];
+            var debugLastLetters = text.Substring(Mathf.Max(0, i - debugLastLettersCount), Mathf.Min(debugLastLettersCount, i + 1));
 
+            if (i > 19945)
+            {
+
+            }
             switch (letter)
             {
                 case '"':
-                    i = parseString(text, i);
+                    if (i > 21900)
+                    {
+
+                    }
+                    (i, l) = parseString(text, i, l);
+                    break;
+                case '\n':
+                    l++;
                     break;
                 case '/':
                     if (text[i + 1] == '/')
-                        i = parseSingleLineComment(text, i);
+                        (i, l) = parseSingleLineComment(text, i, l);
                     else if (text[i + 1] == '*')
-                        i = parseMultiLineComment(text, i);
+                        (i, l) = parseMultiLineComment(text, i, l);
                     break;
 
                 case '{':
-                    var newCurlyBlock = new CurlyBlock(i);
+                    if (i > 22163)
+                    {
+
+                    }
+                    var newCurlyBlock = new CurlyBlock(i, l, result);
                     result.AppendChildBlock(newCurlyBlock);
-                    i = parseBlockRecursively(text, i + 1, newCurlyBlock);
+                    (i, l) = parseBlockRecursively(text, i + 1, l, newCurlyBlock);
                     break;
                 case '}':
                     result.EndIndex = i;
-                    return i;
+                    return (i, l);
                 case ';':
-                    result.AppendCommand(i);
+                    if (result.Info.PropertyGet != default || result.Info.PropertySet != default || result.FindNearestMethod() != default) //У пропертей если и есть команды то только в сеттерах и геттерах, а остальные команды только в методах
+                        result.AppendCommand(i, l);
                     break;
 
                 default:
@@ -51,7 +70,7 @@ public static class RecursiveParserV2
             }
         }
         result.EndIndex = text.Length - 1;
-        return -1;
+        return (-1, -1);
     }
 
     private class asdjij<isoko> where isoko : ICloneable
@@ -101,7 +120,7 @@ public static class RecursiveParserV2
         for (; i >= 0; i--)
         {
             var letter = text[i];
-            debugLastLetters = text.Substring(Mathf.Max(0, i - debguLastLettersCount), Mathf.Min(debguLastLettersCount, i));
+            debugLastLetters = text.Substring(Mathf.Max(0, i - debguLastLettersCount), Mathf.Min(debguLastLettersCount, i + 1));
 
             //if (isInsideGenericsOutsideRoundBrackets > 0)
             //{
@@ -115,6 +134,7 @@ public static class RecursiveParserV2
             {
                 case '=':
                 case ' ':
+                case '\t'://Приравниваем табуляцию к пробелу
                     if (isInsideRoundBrackets)
                         parametersSb.Insert(0, letter); //Внутри скобок мы все это добавляем
                     else if (parametersSb.Length > 0) // Если мы натыкаемся на нелитерал, мы не в скобках и мы уже что-то записали, то это может быть только нелитерал, идущий перед литералом-параметром лямбды
@@ -187,16 +207,28 @@ public static class RecursiveParserV2
                             parameters.Insert(0, new Parameter(parametersSb.ToString()));
                             parametersSb.Clear();
                         }
-                        //Если мы видим открывающие скобки, то дальше мы можем вполне увидеть имя метода
-                        result.Method = parseMethod(text, i - 1);
+                        //Если мы видим открывающие скобки, то дальше мы можем вполне увидеть имя метода, switch или if
+                        var methodNameSwitchOrIf = parseMethodNameSwitchOrIf(text, i - 1);
+                        switch (methodNameSwitchOrIf)
+                        {
+                            case "switch":
+                                result.Switch = methodNameSwitchOrIf;
+                                break;
+                            case "if":
+                                result.If = methodNameSwitchOrIf;
+                                break;
+                            default:
+                                result.Method = methodNameSwitchOrIf;
 
-                        var genericNarrowing = betweenCurlyAndPotentialRoundSb.ToString().Trim();
-                        betweenCurlyAndPotentialRoundSb.Clear();
+                                var genericNarrowing = betweenCurlyAndPotentialRoundSb.ToString().Trim();
+                                betweenCurlyAndPotentialRoundSb.Clear();
 
-                        if (genericNarrowing.Length > 0)
-                            result.GenericNarrowing = genericNarrowing;
+                                if (genericNarrowing.Length > 0)
+                                    result.GenericNarrowing = genericNarrowing;
 
-                        result.Method = parseMethod(text, i - 1);
+                                //result.Method = parseMethodNameOrSwitch(text, i - 1);
+                                break;
+                        }
 
                         goto end; //Параметры закрыты, нам здесь больше делать нечего.
                     }
@@ -226,7 +258,7 @@ public static class RecursiveParserV2
                     if (arrowEncountered || isInsideRoundBrackets)
                         parametersSb.Insert(0, letter);
                     else
-                    { //Этот случай происходит, когда у нас перед блоком стоит определение класса, неймспейса или проперти - сразу идут литералы и надо выходить
+                    { //Этот случай происходит, когда у нас перед блоком стоит определение класса, неймспейса или проперти или кейса - сразу идут литералы и надо выходить
                         parametersSb.Clear();
 
                         var betweenCurlyAndPotentialRoundResult = betweenCurlyAndPotentialRoundSb.ToString().Trim();
@@ -245,6 +277,29 @@ public static class RecursiveParserV2
 
                                     if (betweenCurlyAndPotentialRoundResult.Length > 0)
                                         result.GenericNarrowing = betweenCurlyAndPotentialRoundResult;
+                                    goto end;
+                                case "interface":
+                                    result.Interface = expression.ToString().Trim();
+                                    expression.Clear();
+
+                                    if (betweenCurlyAndPotentialRoundResult.Length > 0)
+                                        result.GenericNarrowing = betweenCurlyAndPotentialRoundResult;
+                                    goto end;
+                                case "struct":
+                                    result.Struct = expression.ToString().Trim();
+                                    expression.Clear();
+                                    goto end;
+                                case "enum":
+                                    result.Enum = expression.ToString().Trim();
+                                    expression.Clear();
+                                    goto end;
+                                case "case":
+                                    //result.Case = expression.ToString().Trim();
+                                    expression.Clear();
+                                    goto end;
+                                case "default:":
+                                    //result.Default = expression.ToString().Trim();
+                                    expression.Clear();
                                     goto end;
                                 case "namespace":
                                     result.Namespace = expression.ToString().Trim();
@@ -283,6 +338,8 @@ public static class RecursiveParserV2
                                     {
                                         case '\r':
                                         case '\n':
+                                        case '\t':
+                                        case ' ':
                                             switch (notAnImmediateClassOrNamespace.Substring(notAnImmediateClassOrNamespace.Length - 3))
                                             {
                                                 case "get":
@@ -331,7 +388,7 @@ public static class RecursiveParserV2
         return result;
     }
 
-    private static string parseMethod(string text, int i)
+    private static string parseMethodNameSwitchOrIf(string text, int i)
     {
         var sb = new StringBuilder();
         for (; i >= 0; i--)
@@ -345,6 +402,7 @@ public static class RecursiveParserV2
                         i = parseMultiLineCommentReverse(text, i);
                     break;
                 case '\n':
+                case '\t':
                 case ' ':
                     //В имени метода литералы разделяются пробелами или новой строкой, поэтому встретив их это для нас знак что можно проверять наличие имени метода
                     if (sb.Length > 0)
@@ -473,6 +531,7 @@ public static class RecursiveParserV2
                         i = parseMultiLineCommentReverse(text, i);
                     break;
                 case '\n':
+                case '\t':
                 case ' ':
                     //В определении класса или неймспейса литералы разделяются пробелами или новой строкой, поэтому встретив их это для нас знак что можно проверять наличие класса.
                     var wordString = wordSB.ToString();
@@ -509,45 +568,101 @@ public static class RecursiveParserV2
         yield return (i + 1, default, commonSb); // + 1 потому что выйдя из префикса нам еще парсить параметры, а значит - распознать )
     }
 
-    private static int parseMultiLineComment(string text, int i)
+    private static (int index, int line) parseMultiLineComment(string text, int i, int l)
     {
         for (i += 2; i < text.Length; i++)
+        {
             if (text[i] == '*' && text[++i] == '/')
-                return i;
-        return -1;
+                return (i, l);
+            else if (text[i] == '\n')
+                l++;
+        }
+        return (-1, -1);
     }
 
-    private static int parseSingleLineComment(string text, int i)
+    private static (int index, int line) parseSingleLineComment(string text, int i, int l)
     {
         for (i += 2; i < text.Length; i++)
             if (text[i] == '\n')
-                return i;
-        return -1;
+            {
+                l++;
+                return (i, l);
+            }
+        return (-1, -1);
     }
 
-    private static int parseString(string text, int i)
+    private static (int index, int line) parseString(string text, int i, int l)
     {
         var isInterpolated = i > 0 && text[i - 1] == '$';
 
-        //var testString = $"{$"{1}"}";
+        var testString = $"{$"{1}"}";
+        var backSlashesCount = 0;
         if (isInterpolated)
         {
             var curlyBracketsCount = 0;
             for (i++; i < text.Length; i++)
             {
                 var letter = text[i];
-                if (letter == '{')
-                    curlyBracketsCount++;
-                else if (letter == '}')
-                    curlyBracketsCount--;
-                else if (letter == '"' && curlyBracketsCount == 0)
-                    return i;
+                switch (letter)
+                {
+                    case '\n':
+                        l++;
+                        backSlashesCount = 0;
+                        break;
+                    case '{':
+                        if (backSlashesCount % 2 == 0)
+                            curlyBracketsCount++;
+                        backSlashesCount = 0;
+                        break;
+                    case '}':
+                        if (backSlashesCount % 2 == 0)
+                            curlyBracketsCount--;
+                        backSlashesCount = 0;
+                        break;
+                    case '\\':
+                        backSlashesCount++;
+                        break;
+                    case '"':
+                        if (curlyBracketsCount == 0 && backSlashesCount % 2 == 0)
+                            return (i, l);
+                        backSlashesCount = 0;
+                        break;
+                    default:
+                        backSlashesCount = 0;
+                        break;
+                }
+
+                //if (letter == '\n')
+                //    l++;
+                //else if (letter == '{')
+                //    curlyBracketsCount++;
+                //else if (letter == '}')
+                //    curlyBracketsCount--;
+                //else if (letter == '"' && curlyBracketsCount == 0)
+                //    return (i, l);
             }
         }
         else
+        {
             for (i++; i < text.Length; i++)
-                if (text[i] == '"')
-                    return i;
-        return -1;
+            {
+                var letter = text[i];
+                switch (letter)
+                {
+                    case '\\':
+                        backSlashesCount++;
+                        break;
+                    case '"':
+                        if (backSlashesCount % 2 == 0) //Если мы встретили кавычку - она может быть частью строки, закомментирована слешем, поэтому единичных слешей быть не должно
+                            return (i, l);
+                        backSlashesCount = 0;
+                        break;
+                    default:
+                        backSlashesCount = 0;
+                        break;
+                }
+            }
+        }
+        return (-1, -1);
     }
 }
